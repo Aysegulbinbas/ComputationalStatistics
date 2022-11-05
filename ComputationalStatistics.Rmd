@@ -1,0 +1,441 @@
+---
+title: "Computational Stat"
+author: " Ayşegül BİNBAŞ "
+date: "6/24/2021"
+output: word_document
+---
+
+```{r}
+
+# Part A :
+#load mtcars dataset
+
+library(moments)
+
+
+head(mtcars)
+
+
+B <- 1000 # bootstrap replicates
+Skew <- numeric(B)
+
+sample_skew <- skewness(mtcars$wt)
+
+for(i in 1:B){
+  index <- sample(1:nrow(mtcars), size = nrow(mtcars), 
+                  replace = TRUE)
+  x <- mtcars[index,"wt"]
+  Skew[i] <- skewness(x)
+
+}
+
+est_skew <- mean(Skew)
+se_skew <- sd(Skew)
+bias_skew <- est_skew - sample_skew
+
+out <- c(sample_skew, est_skew, se_skew, bias_skew)
+names(out) <- c("sample", "estimated", "std.error", "bias")
+out
+
+
+
+#PartB :
+
+# That is the formula for skewness : (sum((x[i]-mean(x))^3)/n) / (((sum((x[i]-mean(x))^2)/n))^3/2)
+
+
+
+library(boot)
+
+skewness <- function(x,i) {
+  n <- length(x)
+  skeww <- (sum((x[i]-mean(x))^3)/n) / (((sum((x[i]-mean(x))^2)/n))^3/2)
+
+  return(skeww)
+}
+
+
+boot <- boot(mtcars$wt, statistic = skewness, R=1000)
+boot
+
+
+#PartC :
+
+# For Jacknife method :
+  
+library(moments)
+
+Skew_jack <- numeric(nrow(mtcars))
+
+sample_skew <- skewness(mtcars$wt)
+
+for(i in 1:nrow(mtcars)){
+  
+  Skew_jack[i] <- skewness(mtcars$wt[-i]) 
+  
+}
+
+est_skew2 <- mean(Skew_jack)
+se_skew2 <- sqrt((nrow(mtcars) - 1) * mean((Skew_jack - est_skew2)^2))
+bias_skew2 <- (nrow(mtcars)-1) * (est_skew2 - sample_skew)
+
+
+
+
+out2 <- c(sample_skew, est_skew, se_skew, bias_skew)
+names(out2) <- c("sample", "estimated", "std.error", "bias")
+out2
+
+
+#PartD :
+
+library(bootstrap)
+library(moments)
+
+alternative.jack <- jackknife(mtcars$wt, skewness)
+
+alternative.jack$jack.se
+alternative.jack$jack.bias
+
+
+
+
+#PartE :
+
+sample_avg1 <- skewness(mtcars$wt)
+
+B <- 1000
+avg1 <- numeric(B)
+
+alpha <- .05
+
+for(i in 1:B){
+  index <- sample(1:nrow(mtcars), size = nrow(mtcars),
+                  replace = TRUE)
+  x <- mtcars[index, "wt"]
+  avg1[i] <- skewness(x)
+}
+
+est_avg <- mean(avg1)
+se_avg <- sd(avg1)
+
+lower <- sample_avg1 - qnorm(1-alpha/2, 0,1) * se_avg
+upper <- sample_avg1 + qnorm(1-alpha/2, 0,1) * se_avg
+
+out3 <- c(lower, upper)
+names(out3) <- c("Lower", "Upper")
+out3
+
+
+
+#PartF :
+
+
+sample_avg2 <- skewness(mtcars$wt)
+
+B <- 1000
+avg2 <- numeric(B)
+
+alpha <- .05
+
+for(i in 1:B){
+  index <- sample(1:nrow(mtcars), size = nrow(mtcars),
+                  replace = TRUE)
+  x <- mtcars[index, "wt"]
+  avg2[i] <- skewness(x)
+}
+
+lower <- quantile(avg2, alpha/2)
+upper <- quantile(avg2, 1-alpha/2)
+
+out4 <- c(lower, upper)
+names(out) <- c("Lower", "Upper")
+out4
+
+
+
+
+
+```
+
+
+```{r}
+#PartA :
+
+
+# Sturges' Rule 
+
+sturges <- function(x){
+  n <- length(x)
+  nclass <- ceiling(1 + log2(n))
+  cwidth <- diff(range(x) / nclass) #binwidth
+  breaks <- min(x) + cwidth * 0:nclass
+  return(list(nclass = nclass, cwidth = cwidth, breaks = breaks))
+}
+
+
+set.seed(1234)
+x <- rnorm(100, 5, 3)
+
+
+z <- seq(min(x) - sturges(x)$cwidth, max(x) +  sturges(x)$cwidth, 0.01)
+
+h.default <- hist(x, freq = FALSE, xlab = "default", main = "default")
+lines(z, dnorm(z, 5, 3),col = "red", lwd = 2.5)
+
+#sturges'
+h.sturges <- hist(x, breaks = sturges(x)$breaks, prob = TRUE, main = "Sturges")
+lines(z, dnorm(z, 5, 3),col = "red", lwd = 2.5)
+
+
+
+# breaks
+h.default$breaks
+round(h.sturges$breaks,1)
+
+# counts
+h.default$counts
+h.sturges$counts
+
+sturges(x)$cwidth
+
+
+
+
+#Now, this time increase the sample size to 1000, you must see that the shape looks exactly symmetric bell shape. 
+set.seed(1234)
+y <- rnorm(1000, 5, 3)
+
+z <- seq(min(y) - sturges(y)$cwidth, max(y) +  sturges(y)$cwidth, 0.01)
+
+h.default2 <- hist(y, freq = FALSE,
+                   xlab = "default", main = "default")
+lines(z, dnorm(z, 5, 3),col = "red", lwd = 2.5)
+
+#sturges'
+h.sturges2 <- hist(y, breaks = sturges(y)$breaks,
+                   prob = TRUE, main = "Sturges")
+lines(z, dnorm(z, 5, 3),col = "red", lwd = 2.5)
+
+
+
+
+
+#Now, let 𝑥0 = 12, locate the bin containing the point 𝑥0 and then compute the relative frequency. 
+#Compare with exact value (dnorm(12,5,3))
+
+x0 <- 12
+b <- which.min(h.default2$breaks <= x0) - 1
+print(c(b, h.default2$density[b]))
+b <- which.min(h.sturges2$breaks <= x0) - 1
+print(c(b, h.sturges2$density[b]))
+
+# exact value
+dnorm(12,5,3)
+# both values are close to the exact value 
+
+
+
+
+
+```
+
+
+```{r}
+#PartB :
+
+set.seed(1234)
+x <- rnorm(100, 5, 3)
+
+scotts <- function(x){
+  
+  n <- length(x)
+  h <- 3.5 * sd(x) * n^(-1/3) #optimal choice of binwidth
+  nclass <- ceiling(diff(range(x)) / h)
+  breaks <- min(x) + h * 0:nclass
+  return(list(nclass = nclass, h = h, breaks = breaks))
+  
+}
+
+h.scott <- hist(x, breaks = scotts(x)$breaks, freq = FALSE, main = "")
+z <- seq(min(x) - scotts(x)$h, max(x) +  scotts(x)$h, 0.01)
+lines(z, dnorm(z,mean = 5, sd = 3), col = "Red", lwd = 2.5)
+
+
+# Now, let 𝑥0 = 12, locate the bin containing the point 𝑥0 and then compute the relative frequency. 
+#Compare with exact value (dnorm(12,5,3))
+
+
+x0 <- 12
+b <- which.min(h.scott$breaks <= x0) - 1
+print(c(b, h.scott$density[b]))
+
+# exact value
+dnorm(12,5,3)
+# both values are close to the exact value 
+
+
+
+
+
+
+
+
+```
+
+
+```{r}
+#PartC :
+
+
+
+set.seed(1234)
+x <- rnorm(100, 5, 3)
+
+FD <- function(x){
+  n <- length(x)
+  h <- 2 * IQR(x) * n^(-1/3)
+  nclass <- ceiling(diff(range(x)) / h)
+  breaks <- min(x) + h * 0:nclass
+  return(list(nclass = nclass, h = h, breaks = breaks))
+  
+}
+
+h.FD <- hist(x, breaks = FD(x)$breaks, freq = FALSE, main = "")
+z <- seq(min(x) - FD(x)$h, max(x) +  FD(x)$h, 0.01)
+lines(z, dnorm(z,mean = 5, sd = 3), col = "Red", lwd = 2.5)
+
+
+# Now, let 𝑥0 = 12, locate the bin containing the point 𝑥0 and then compute the relative frequency. 
+#Compare with exact value (dnorm(12,5,3))
+
+
+
+x0 <- 12
+b <- which.min(h.FD$breaks <= x0) - 1
+print(c(b, h.FD$density[b]))
+
+# exact value
+dnorm(12,5,3)
+# both values are close to the exact value 
+
+
+
+
+
+
+
+
+
+
+```
+
+
+```{r}
+#PartD :
+
+
+set.seed(361)
+x <- rnorm(100,5,3)
+
+n <- length(x)
+h <- 2.576 * sd(x) * n^(-1/5)
+
+a <- min(x) - .5
+b <- max(x) + .5
+
+m <- 10
+delta <- h / m
+
+breaks <- seq(a - h, b + 2*h, delta)
+hist.ash <- hist(x, breaks = breaks, plot = F)
+
+
+
+
+nk <- hist.ash$counts
+K <- abs((1-m):(m-1))
+
+fhat <- function(x){
+  i <- max(which(x > breaks))
+  k <- (i - m + 1):(i + m - 1)
+  vk <- nk[k]
+  sum((1 - K / m) * vk) / (n * h)
+}
+
+fhat(12)
+
+
+
+# density can be computed at any points in range of data
+z <- as.matrix(seq(a, b + h, .1))
+f.ash <- apply(z, 1, fhat) #density estimates at midpts
+
+
+# plot ASH density estimate over histogram
+breaks2 <- seq(a, b + h, h)
+
+hist(x, breaks = breaks2, freq = FALSE, main = "ASH", ylim = c(0, max(f.ash)))
+lines(z, f.ash, xlab = "x")
+
+
+
+
+```
+
+
+```{r}
+#PartE :
+
+
+set.seed(361)
+x <- rnorm(100, 5, 3)
+
+n <- length(x)
+h <- 0.9 * min(sd(x), IQR(x)) * n ^ (-1/5)
+
+plot(density(x))
+plot(density(x, bw = h))
+plot(density(x, kernel = "cosine"))
+
+d <- density(x, bw = h)
+xnew <- seq(min(x), max(x), .1)
+fhat <- approx(d$x, d$y, xout = xnew)
+plot(fhat)
+
+
+approx(d$x, d$y, xout = c(12,21))
+
+
+
+
+set.seed(361)
+x <- rnorm(100, 5, 3)
+
+n <- length(x)
+h <- 0.9 * min(sd(x), IQR(x)) * n ^ (-1/5)
+
+ND <- function(x){
+  sqrt(2*pi)^(-1) * exp(-0.5 * x^2)
+} 
+
+K <- function(x,data){
+  size <- length(x)
+  out <- numeric(size)
+  
+  for(i in 1:size){
+    
+    out[i] <- mean(ND((x[i]-data)/h)/h)
+    
+  }
+  return(out)
+}
+
+K(c(12,21),x)
+
+
+
+
+
+```
+
